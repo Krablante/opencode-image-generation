@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented here.
 
+## 0.3.1 - 2026-07-10
+
+- Isolate plugin integration tests from the real `~/gen-images/` directory.
+
 ## 0.3.0 - 2026-07-10
 
 - Change the default output root to the stable user directory `~/gen-images/`.

@@ -8,7 +8,9 @@ import OpenCodeImageGenerationPlugin from "../src/index.js"
 test("loads as a plugin, observes OpenAI auth, and returns a file attachment", async () => {
   const worktree = await mkdtemp(join(tmpdir(), "opencode-image-plugin-"))
   const originalFetch = globalThis.fetch
+  const originalOutputDirectory = process.env.OPENCODE_IMAGE_GENERATION_DIR
   try {
+    process.env.OPENCODE_IMAGE_GENERATION_DIR = join(worktree, "generated")
     globalThis.fetch = async () =>
       new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("image").toString("base64") }] }), {
         status: 200,
@@ -49,10 +51,12 @@ test("loads as a plugin, observes OpenAI auth, and returns a file attachment", a
     if (typeof result === "object") {
       assert.equal(result.attachments?.[0]?.type, "file")
       assert.equal(result.attachments?.[0]?.mime, "image/png")
-      assert.match(result.output, /gen-images\/integration\.png/)
+      assert.match(result.output, /generated\/integration\.png/)
     }
   } finally {
     globalThis.fetch = originalFetch
+    if (originalOutputDirectory === undefined) delete process.env.OPENCODE_IMAGE_GENERATION_DIR
+    else process.env.OPENCODE_IMAGE_GENERATION_DIR = originalOutputDirectory
     await rm(worktree, { recursive: true, force: true })
   }
 })
