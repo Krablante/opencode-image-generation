@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented here.
 
+## 0.4.0 - 2026-07-10
+
+- Restore the portable `.opencode/image-generation/` public default.
+- Keep centralized home-directory storage available through plugin configuration.
+- Separate public defaults from deployment-specific policies such as Politia's `~/gen-images/` configuration.
+
 ## 0.3.1 - 2026-07-10
 
 - Isolate plugin integration tests from the real `~/gen-images/` directory.

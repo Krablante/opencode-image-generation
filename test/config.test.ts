@@ -14,11 +14,11 @@ async function withTemp(run: (directory: string) => Promise<void>) {
   }
 }
 
-test("uses a stable directory under the user home by default", async () => {
+test("uses a predictable project-local directory by default", async () => {
   await withTemp(async (directory) => {
     const config = await loadConfig(directory, { XDG_CONFIG_HOME: join(directory, "missing-config") }, directory, "linux")
     assert.equal(config.outputDirectory, DEFAULT_OUTPUT_DIRECTORY)
-    assert.equal(config.outputRoot, resolve(directory, "gen-images"))
+    assert.equal(config.outputRoot, resolve(directory, ".opencode/image-generation"))
   })
 })
 

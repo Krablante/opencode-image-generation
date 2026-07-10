@@ -14,7 +14,7 @@ OpenCode can call local function tools, while OpenAI exposes image generation th
 - Refreshes expiring ChatGPT OAuth tokens and saves the refreshed credential through OpenCode.
 - Uses the same ChatGPT image endpoint and OAuth client as Codex CLI.
 - Falls back to the public OpenAI Images API for API-key accounts.
-- Uses a fixed `~/gen-images/` directory by default.
+- Uses a predictable `.opencode/image-generation/` project directory by default.
 - Supports a project-relative or absolute user-configured output root.
 - Keeps every tool-selected output path inside that root.
 - Returns a normal OpenCode image attachment so the model can inspect the result.
@@ -59,17 +59,18 @@ No token is written to this plugin's directory or included in tool output.
 By default, every image is stored under:
 
 ```text
-~/gen-images/
+<current project>/.opencode/image-generation/
 ```
 
-On a typical Linux host this resolves to `/home/<username>/gen-images/`, so the
-location stays stable when you switch projects.
+This portable default follows the Codex pattern of keeping generated artifacts
+under a hidden project-local directory. Users who prefer one stable directory
+across projects can configure an absolute or home-relative path.
 
 To change it, create `opencode-image-generation.json` in the active OpenCode configuration directory:
 
 ```json
 {
-  "outputDirectory": "artifacts/generated-images"
+  "outputDirectory": "~/gen-images"
 }
 ```
 
