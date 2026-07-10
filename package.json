@@ -1,12 +1,13 @@
 {
   "name": "opencode-image-generation",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Generate images from OpenCode with an existing ChatGPT OAuth session or an OpenAI API key.",
   "type": "module",
   "exports": "./src/index.ts",
   "files": [
     "src",
     "examples",
+    "assets",
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE",

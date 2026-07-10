@@ -49,7 +49,7 @@ test("loads as a plugin, observes OpenAI auth, and returns a file attachment", a
     if (typeof result === "object") {
       assert.equal(result.attachments?.[0]?.type, "file")
       assert.equal(result.attachments?.[0]?.mime, "image/png")
-      assert.match(result.output, /\.opencode\/image-generation\/integration\.png/)
+      assert.match(result.output, /gen-images\/integration\.png/)
     }
   } finally {
     globalThis.fetch = originalFetch

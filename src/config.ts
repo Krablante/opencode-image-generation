@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { isAbsolute, join, resolve } from "node:path"
 
-export const DEFAULT_OUTPUT_DIRECTORY = ".opencode/image-generation"
+export const DEFAULT_OUTPUT_DIRECTORY = "~/gen-images"
 export const CONFIG_FILENAME = "opencode-image-generation.json"
 
 export type ImageGenerationConfig = {

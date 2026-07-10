@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented here.
 
+## 0.3.0 - 2026-07-10
+
+- Change the default output root to the stable user directory `~/gen-images/`.
+- Add a generated project logo to the README.
+
 ## 0.2.0 - 2026-07-10
 
 - Save images under the fixed `.opencode/image-generation/` project directory by default.
