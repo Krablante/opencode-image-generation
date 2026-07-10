@@ -1,0 +1,50 @@
+{
+  "name": "opencode-image-generation",
+  "version": "0.1.0",
+  "description": "Generate images from OpenCode with an existing ChatGPT OAuth session or an OpenAI API key.",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "files": [
+    "src",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "npm run typecheck && npm test",
+    "test": "tsx --test test/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "opencode",
+    "openai",
+    "chatgpt",
+    "image-generation",
+    "plugin"
+  ],
+  "author": "Krablante",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Krablante/opencode-image-generation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Krablante/opencode-image-generation/issues"
+  },
+  "homepage": "https://github.com/Krablante/opencode-image-generation#readme",
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.2.25"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
