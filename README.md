@@ -14,7 +14,9 @@ OpenCode can call local function tools, while OpenAI exposes image generation th
 - Returns a normal OpenCode image attachment so the model can inspect the result.
 
 > [!IMPORTANT]
-> ChatGPT OAuth image generation uses an undocumented ChatGPT backend endpoint also used by Codex CLI. It can change without a public API compatibility guarantee.
+> ChatGPT OAuth image generation uses the undocumented
+> `https://chatgpt.com/backend-api/codex/images/generations` endpoint also used
+> by Codex CLI. It can change without a public API compatibility guarantee.
 
 ## Install
 
