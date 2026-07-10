@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -27,7 +27,7 @@ test("uses ChatGPT endpoint and account header for OAuth", async () => {
     }
     const result = await generateImage(
       { type: "oauth", access: "secret", refresh: "refresh", expires: Date.now() + 60_000, accountId: "acct" },
-      { prompt: "test", outputPath: "generated-images/test.png" },
+      { prompt: "test", outputPath: "nested/test.png" },
       directory,
       fetcher,
     )
@@ -53,20 +53,45 @@ test("uses public endpoint for API keys", async () => {
   })
 })
 
-test("rejects output paths outside the current directory", async () => {
+test("rejects output paths outside the configured output directory before calling the API", async () => {
   await withTemp(async (directory) => {
+    let called = false
     await assert.rejects(
       generateImage(
         { type: "api", key: "key" },
         { prompt: "test", outputPath: "../escape.png" },
         directory,
-        async () =>
-          new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("image").toString("base64") }] }), {
+        async () => {
+          called = true
+          return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("image").toString("base64") }] }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
-          }),
+          })
+        },
       ),
-      /inside the current directory/,
+      /inside the configured output directory/,
     )
+    assert.equal(called, false)
+  })
+})
+
+test("refuses to overwrite an existing file before calling the API", async () => {
+  await withTemp(async (directory) => {
+    await writeFile(join(directory, "existing.png"), "keep")
+    let called = false
+    await assert.rejects(
+      generateImage(
+        { type: "api", key: "key" },
+        { prompt: "test", outputPath: "existing.png" },
+        directory,
+        async () => {
+          called = true
+          return new Response()
+        },
+      ),
+      /already exists/,
+    )
+    assert.equal(called, false)
+    assert.equal(await readFile(join(directory, "existing.png"), "utf8"), "keep")
   })
 })

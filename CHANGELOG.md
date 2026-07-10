@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented here.
 
+## 0.2.0 - 2026-07-10
+
+- Save images under the fixed `.opencode/image-generation/` project directory by default.
+- Add hot-reloaded `opencode-image-generation.json` configuration with `outputDirectory`.
+- Add `OPENCODE_IMAGE_GENERATION_DIR` and `OPENCODE_IMAGE_GENERATION_CONFIG` overrides.
+- Restrict `output_path` to the configured output root.
+- Validate output paths and existing files before starting a paid image-generation request.
+
 ## 0.1.0 - 2026-07-10
 
 - Add `image_generate` with PNG, JPEG, and WebP output.

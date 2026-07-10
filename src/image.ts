@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { access, mkdir, writeFile } from "node:fs/promises"
 import { dirname, extname, isAbsolute, relative, resolve } from "node:path"
 import type { StoredAuth } from "./auth.js"
 import {
@@ -41,16 +41,16 @@ function mime(format: ImageFormat): string {
 
 function defaultFilename(format: ImageFormat): string {
   const stamp = new Date().toISOString().replaceAll(":", "-").replace(".", "-")
-  return `generated-images/image-${stamp}${extension(format)}`
+  return `image-${stamp}${extension(format)}`
 }
 
-function outputFile(directory: string, requested: string | undefined, format: ImageFormat): string {
-  const root = resolve(directory)
+function outputFile(outputRoot: string, requested: string | undefined, format: ImageFormat): string {
+  const root = resolve(outputRoot)
   const candidate = requested ?? defaultFilename(format)
   const absolute = resolve(root, candidate)
   const distance = relative(root, absolute)
   if (distance === ".." || distance.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(distance)) {
-    throw new Error("output_path must stay inside the current directory")
+    throw new Error("output_path must stay inside the configured output directory")
   }
   if (requested && extname(absolute).toLowerCase() !== extension(format)) {
     throw new Error(`output_path must end in ${extension(format)}`)
@@ -61,10 +61,19 @@ function outputFile(directory: string, requested: string | undefined, format: Im
 export async function generateImage(
   auth: StoredAuth,
   input: GenerateImageInput,
-  directory: string,
+  outputRoot: string,
   fetcher: typeof fetch = fetch,
 ): Promise<GeneratedImage> {
   const format = input.format ?? "png"
+  const absolutePath = outputFile(outputRoot, input.outputPath, format)
+  await mkdir(dirname(absolutePath), { recursive: true })
+  try {
+    await access(absolutePath)
+    throw new Error(`Output file already exists: ${absolutePath}`)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+  }
+
   const endpoint = auth.type === "oauth" ? CHATGPT_IMAGE_ENDPOINT : OPENAI_IMAGE_ENDPOINT
   const headers = new Headers({
     Authorization: `Bearer ${auth.type === "oauth" ? auth.access : auth.key}`,
@@ -92,8 +101,6 @@ export async function generateImage(
   const result = body.data?.[0]
   if (!result?.b64_json) throw new Error("Image generation returned no image data")
 
-  const absolutePath = outputFile(directory, input.outputPath, format)
-  await mkdir(dirname(absolutePath), { recursive: true })
   await writeFile(absolutePath, Buffer.from(result.b64_json, "base64"), { flag: "wx" })
   return {
     absolutePath,
