@@ -1,6 +1,6 @@
 # OpenCode Image Generation
 
-Generate images from OpenCode with the OpenAI credential you already use there. The plugin supports both ChatGPT Plus/Pro OAuth and regular OpenAI API keys, saves generated files in your worktree, and returns each image to the model as a tool attachment.
+Generate images from OpenCode with the OpenAI credential you already use there. The plugin supports both ChatGPT Plus/Pro OAuth and regular OpenAI API keys, saves generated files in your current working directory, and returns each image to the model as a tool attachment.
 
 ## Why this plugin
 
@@ -10,7 +10,7 @@ OpenCode can call local function tools, while OpenAI exposes image generation th
 - Refreshes expiring ChatGPT OAuth tokens and saves the refreshed credential through OpenCode.
 - Uses the same ChatGPT image endpoint and OAuth client as Codex CLI.
 - Falls back to the public OpenAI Images API for API-key accounts.
-- Keeps output paths inside the active worktree.
+- Keeps output paths inside the active working directory.
 - Returns a normal OpenCode image attachment so the model can inspect the result.
 
 > [!IMPORTANT]
@@ -62,7 +62,7 @@ The model can call `image_generate` with these options:
 | Argument | Values |
 | --- | --- |
 | `prompt` | Required image description |
-| `output_path` | Relative path inside the worktree |
+| `output_path` | Relative path inside the current working directory |
 | `size` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |
 | `quality` | `auto`, `low`, `medium`, `high` |
 | `background` | `auto`, `transparent`, `opaque` |

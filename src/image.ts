@@ -44,13 +44,13 @@ function defaultFilename(format: ImageFormat): string {
   return `generated-images/image-${stamp}${extension(format)}`
 }
 
-function outputFile(worktree: string, requested: string | undefined, format: ImageFormat): string {
-  const root = resolve(worktree)
+function outputFile(directory: string, requested: string | undefined, format: ImageFormat): string {
+  const root = resolve(directory)
   const candidate = requested ?? defaultFilename(format)
   const absolute = resolve(root, candidate)
   const distance = relative(root, absolute)
   if (distance === ".." || distance.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || isAbsolute(distance)) {
-    throw new Error("output_path must stay inside the current worktree")
+    throw new Error("output_path must stay inside the current directory")
   }
   if (requested && extname(absolute).toLowerCase() !== extension(format)) {
     throw new Error(`output_path must end in ${extension(format)}`)
@@ -61,7 +61,7 @@ function outputFile(worktree: string, requested: string | undefined, format: Ima
 export async function generateImage(
   auth: StoredAuth,
   input: GenerateImageInput,
-  worktree: string,
+  directory: string,
   fetcher: typeof fetch = fetch,
 ): Promise<GeneratedImage> {
   const format = input.format ?? "png"
@@ -92,7 +92,7 @@ export async function generateImage(
   const result = body.data?.[0]
   if (!result?.b64_json) throw new Error("Image generation returned no image data")
 
-  const absolutePath = outputFile(worktree, input.outputPath, format)
+  const absolutePath = outputFile(directory, input.outputPath, format)
   await mkdir(dirname(absolutePath), { recursive: true })
   await writeFile(absolutePath, Buffer.from(result.b64_json, "base64"), { flag: "wx" })
   return {

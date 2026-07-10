@@ -9,3 +9,4 @@ All notable changes to this project will be documented here.
 - Preserve browser, headless, and API-key connection methods for the OpenAI provider.
 - Refresh expiring OAuth credentials through OpenCode's auth API.
 - Return generated files as OpenCode attachments.
+- Resolve output paths from the active directory, including non-git sessions whose worktree is `/`.

@@ -53,7 +53,7 @@ test("uses public endpoint for API keys", async () => {
   })
 })
 
-test("rejects output paths outside the worktree", async () => {
+test("rejects output paths outside the current directory", async () => {
   await withTemp(async (directory) => {
     await assert.rejects(
       generateImage(
@@ -66,7 +66,7 @@ test("rejects output paths outside the worktree", async () => {
             headers: { "Content-Type": "application/json" },
           }),
       ),
-      /inside the current worktree/,
+      /inside the current directory/,
     )
   })
 })
