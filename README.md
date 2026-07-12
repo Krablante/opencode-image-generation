@@ -4,7 +4,7 @@
   <img src="assets/logo.webp" alt="OpenCode Image Generation logo" width="520">
 </p>
 
-Generate images from OpenCode with the OpenAI credential you already use there. The plugin supports both ChatGPT Plus/Pro OAuth and regular OpenAI API keys, saves generated files under one predictable output root, and returns each image to the model as a tool attachment.
+Generate and edit images from OpenCode with the OpenAI credential you already use there. The plugin supports both ChatGPT Plus/Pro OAuth and regular OpenAI API keys, accepts local reference images, saves results under one predictable output root, and returns each image to the model as a tool attachment.
 
 ## Why this plugin
 
@@ -14,6 +14,8 @@ OpenCode can call local function tools, while OpenAI exposes image generation th
 - Refreshes expiring ChatGPT OAuth tokens and saves the refreshed credential through OpenCode.
 - Uses the same ChatGPT image endpoint and OAuth client as Codex CLI.
 - Falls back to the public OpenAI Images API for API-key accounts.
+- Edits from up to five PNG, JPEG, WebP, or GIF reference images.
+- Supports transparent PNG masks with API-key authentication.
 - Uses a predictable `.opencode/image-generation/` project directory by default.
 - Supports a project-relative or absolute user-configured output root.
 - Keeps every tool-selected output path inside that root.
@@ -103,6 +105,18 @@ Generate a square watercolor illustration of a lighthouse in a winter storm.
 Name it lighthouse.png.
 ```
 
+To generate from an existing image, give the model a path it can read:
+
+```text
+Use /home/me/Pictures/lighthouse.png as a reference. Turn it into a moonlit
+winter scene and save the result as lighthouse-night.png.
+```
+
+Relative paths are resolved from the active OpenCode directory. Absolute and
+`~/` paths are supported. The plugin requests OpenCode `read` permission before
+loading files and requests `external_directory` permission when a reference is
+outside the active directory.
+
 The model can call `image_generate` with these options:
 
 | Argument | Values |
@@ -111,10 +125,25 @@ The model can call `image_generate` with these options:
 | `output_path` | Optional relative path inside the configured output root |
 | `size` | `auto`, `1024x1024`, `1536x1024`, `1024x1536` |
 | `quality` | `auto`, `low`, `medium`, `high` |
-| `background` | `auto`, `transparent`, `opaque` |
+| `background` | `auto`, `opaque` (`gpt-image-2` does not support transparency) |
 | `format` | `png`, `jpeg`, `webp` |
+| `input_images` | Up to five relative, absolute, or `~/` reference paths |
+| `mask_path` | Transparent PNG mask for one input image; API-key mode only |
 
 If `output_path` is omitted, the plugin creates a timestamped filename directly under the configured output root. Existing files are never overwritten.
+
+### Editing behavior
+
+- ChatGPT OAuth edits use the Codex-compatible
+  `https://chatgpt.com/backend-api/codex/images/edits` endpoint and return PNG.
+- API-key edits use the official multipart `POST /v1/images/edits` endpoint and
+  support PNG masks and all configured output formats.
+- Inputs are detected by file signature rather than extension.
+- Each input is limited to 50 MiB; combined inputs are limited to 100 MiB.
+- To continue editing a generated image, pass the absolute output path returned
+  by the previous tool call in `input_images`.
+
+See [Architecture](docs/architecture.md) for the request and security model.
 
 ## Development
 
@@ -123,7 +152,10 @@ npm install
 npm run check
 ```
 
-Tests use mocked OpenAI responses and never require a real credential.
+Tests use mocked OpenAI responses and never require a real credential. The suite
+covers OAuth generation/edit requests, public multipart edits and masks, path
+permissions, file signatures, output confinement, OAuth refresh, and plugin
+loading.
 
 ## Security
 

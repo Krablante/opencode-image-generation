@@ -2,11 +2,14 @@ import { access, mkdir, writeFile } from "node:fs/promises"
 import { dirname, extname, isAbsolute, relative, resolve } from "node:path"
 import type { StoredAuth } from "./auth.js"
 import {
+  CHATGPT_IMAGE_EDIT_ENDPOINT,
   CHATGPT_IMAGE_ENDPOINT,
   DEFAULT_IMAGE_MODEL,
+  OPENAI_IMAGE_EDIT_ENDPOINT,
   OPENAI_IMAGE_ENDPOINT,
   USER_AGENT,
 } from "./constants.js"
+import type { LoadedImage } from "./input-images.js"
 
 export type ImageFormat = "png" | "jpeg" | "webp"
 
@@ -15,8 +18,10 @@ export type GenerateImageInput = {
   outputPath?: string
   size?: "auto" | "1024x1024" | "1536x1024" | "1024x1536"
   quality?: "auto" | "low" | "medium" | "high"
-  background?: "auto" | "transparent" | "opaque"
+  background?: "auto" | "opaque"
   format?: ImageFormat
+  inputImages?: LoadedImage[]
+  mask?: LoadedImage
 }
 
 type ImageResponse = {
@@ -29,6 +34,7 @@ export type GeneratedImage = {
   base64: string
   mime: string
   revisedPrompt?: string
+  mode: "generation" | "edit"
 }
 
 function extension(format: ImageFormat): string {
@@ -63,6 +69,7 @@ export async function generateImage(
   input: GenerateImageInput,
   outputRoot: string,
   fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<GeneratedImage> {
   const format = input.format ?? "png"
   const absolutePath = outputFile(outputRoot, input.outputPath, format)
@@ -74,31 +81,81 @@ export async function generateImage(
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
   }
 
-  const endpoint = auth.type === "oauth" ? CHATGPT_IMAGE_ENDPOINT : OPENAI_IMAGE_ENDPOINT
+  const inputImages = input.inputImages ?? []
+  const mode = inputImages.length > 0 ? "edit" : "generation"
+  if (input.mask && mode !== "edit") throw new Error("A mask requires at least one input image")
+  if (input.mask && auth.type === "oauth") {
+    throw new Error("mask_path is supported with OpenAI API-key authentication only")
+  }
+  if (mode === "edit" && auth.type === "oauth" && format !== "png") {
+    throw new Error("ChatGPT OAuth image edits currently return PNG; set format to png")
+  }
+
+  const endpoint =
+    mode === "edit"
+      ? auth.type === "oauth"
+        ? CHATGPT_IMAGE_EDIT_ENDPOINT
+        : OPENAI_IMAGE_EDIT_ENDPOINT
+      : auth.type === "oauth"
+        ? CHATGPT_IMAGE_ENDPOINT
+        : OPENAI_IMAGE_ENDPOINT
   const headers = new Headers({
     Authorization: `Bearer ${auth.type === "oauth" ? auth.access : auth.key}`,
-    "Content-Type": "application/json",
     "User-Agent": USER_AGENT,
     originator: "opencode-image-generation",
   })
   if (auth.type === "oauth" && auth.accountId) headers.set("ChatGPT-Account-Id", auth.accountId)
 
+  let body: BodyInit
+  if (mode === "edit" && auth.type === "api") {
+    const form = new FormData()
+    form.set("model", DEFAULT_IMAGE_MODEL)
+    form.set("prompt", input.prompt)
+    form.set("n", "1")
+    form.set("size", input.size ?? "auto")
+    form.set("quality", input.quality ?? "auto")
+    form.set("background", input.background ?? "auto")
+    form.set("output_format", format)
+    for (const image of inputImages) {
+      form.append("image[]", new Blob([new Uint8Array(image.bytes)], { type: image.mime }), image.filename)
+    }
+    if (input.mask) {
+      form.set("mask", new Blob([new Uint8Array(input.mask.bytes)], { type: input.mask.mime }), input.mask.filename)
+    }
+    body = form
+  } else {
+    headers.set("Content-Type", "application/json")
+    body = JSON.stringify(
+      mode === "edit"
+        ? {
+            model: DEFAULT_IMAGE_MODEL,
+            prompt: input.prompt,
+            images: inputImages.map((image) => ({ image_url: image.dataUrl })),
+            n: 1,
+            size: input.size ?? "auto",
+            quality: input.quality ?? "auto",
+          }
+        : {
+            model: DEFAULT_IMAGE_MODEL,
+            prompt: input.prompt,
+            n: 1,
+            size: input.size ?? "auto",
+            quality: input.quality ?? "auto",
+            background: input.background ?? "auto",
+            output_format: format,
+          },
+    )
+  }
+
   const response = await fetcher(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model: DEFAULT_IMAGE_MODEL,
-      prompt: input.prompt,
-      n: 1,
-      size: input.size ?? "auto",
-      quality: input.quality ?? "auto",
-      background: input.background ?? "auto",
-      output_format: format,
-    }),
+    body,
+    signal,
   })
-  const body = (await response.json().catch(() => ({}))) as ImageResponse
-  if (!response.ok) throw new Error(body.error?.message ?? `Image generation failed (${response.status})`)
-  const result = body.data?.[0]
+  const responseBody = (await response.json().catch(() => ({}))) as ImageResponse
+  if (!response.ok) throw new Error(responseBody.error?.message ?? `Image generation failed (${response.status})`)
+  const result = responseBody.data?.[0]
   if (!result?.b64_json) throw new Error("Image generation returned no image data")
 
   await writeFile(absolutePath, Buffer.from(result.b64_json, "base64"), { flag: "wx" })
@@ -107,5 +164,6 @@ export async function generateImage(
     base64: result.b64_json,
     mime: mime(format),
     revisedPrompt: result.revised_prompt,
+    mode,
   }
 }

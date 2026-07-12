@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented here.
 
+## 0.5.0 - 2026-07-10
+
+- Add image-to-image editing from up to five local reference images.
+- Add Codex-compatible ChatGPT OAuth edits and official multipart API-key edits.
+- Add optional PNG masks for API-key edits with one input image.
+- Request OpenCode read and external-directory permissions before loading inputs.
+- Detect PNG, JPEG, WebP, and GIF inputs by signature and enforce memory limits.
+- Propagate tool cancellation to image API requests.
+- Remove the unsupported transparent-background option for `gpt-image-2`.
+
 ## 0.4.0 - 2026-07-10
 
 - Restore the portable `.opencode/image-generation/` public default.

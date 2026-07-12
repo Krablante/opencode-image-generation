@@ -3,8 +3,25 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
-import { CHATGPT_IMAGE_ENDPOINT, OPENAI_IMAGE_ENDPOINT } from "../src/constants.js"
+import {
+  CHATGPT_IMAGE_EDIT_ENDPOINT,
+  CHATGPT_IMAGE_ENDPOINT,
+  OPENAI_IMAGE_EDIT_ENDPOINT,
+  OPENAI_IMAGE_ENDPOINT,
+} from "../src/constants.js"
 import { generateImage } from "../src/image.js"
+import type { LoadedImage } from "../src/input-images.js"
+
+const loadedPng = (name = "input.png"): LoadedImage => {
+  const bytes = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("image")])
+  return {
+    path: `/tmp/${name}`,
+    filename: name,
+    mime: "image/png",
+    bytes,
+    dataUrl: `data:image/png;base64,${bytes.toString("base64")}`,
+  }
+}
 
 async function withTemp(run: (directory: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), "opencode-image-generation-"))
@@ -50,6 +67,114 @@ test("uses public endpoint for API keys", async () => {
     }
     await generateImage({ type: "api", key: "key" }, { prompt: "test" }, directory, fetcher)
     assert.equal(url, OPENAI_IMAGE_ENDPOINT)
+  })
+})
+
+test("propagates tool cancellation to the image request", async () => {
+  await withTemp(async (directory) => {
+    const controller = new AbortController()
+    let received: AbortSignal | null | undefined
+    await generateImage(
+      { type: "api", key: "key" },
+      { prompt: "test" },
+      directory,
+      async (_url, init) => {
+        received = init?.signal
+        return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("image").toString("base64") }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+      controller.signal,
+    )
+    assert.equal(received, controller.signal)
+  })
+})
+
+test("uses the Codex-compatible JSON edit endpoint for OAuth inputs", async () => {
+  await withTemp(async (directory) => {
+    let request: Request | undefined
+    const input = loadedPng()
+    const result = await generateImage(
+      { type: "oauth", access: "secret", refresh: "refresh", expires: Date.now() + 60_000, accountId: "acct" },
+      { prompt: "make it blue", outputPath: "edit.png", inputImages: [input] },
+      directory,
+      async (url, init) => {
+        request = new Request(url, init)
+        return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("edited").toString("base64") }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+    )
+    assert.equal(request?.url, CHATGPT_IMAGE_EDIT_ENDPOINT)
+    assert.match(request?.headers.get("content-type") ?? "", /application\/json/)
+    const body = JSON.parse(await request!.text()) as { images: Array<{ image_url: string }> }
+    assert.deepEqual(body.images, [{ image_url: input.dataUrl }])
+    assert.equal(result.mode, "edit")
+    assert.equal(result.mime, "image/png")
+  })
+})
+
+test("uses multipart image[] and mask fields for API-key edits", async () => {
+  await withTemp(async (directory) => {
+    let request: Request | undefined
+    const result = await generateImage(
+      { type: "api", key: "key" },
+      {
+        prompt: "edit masked area",
+        outputPath: "edit.webp",
+        format: "webp",
+        inputImages: [loadedPng("source.png")],
+        mask: loadedPng("mask.png"),
+      },
+      directory,
+      async (url, init) => {
+        request = new Request(url, init)
+        return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from("edited").toString("base64") }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+    )
+    assert.equal(request?.url, OPENAI_IMAGE_EDIT_ENDPOINT)
+    assert.match(request?.headers.get("content-type") ?? "", /^multipart\/form-data; boundary=/)
+    const form = await request!.formData()
+    assert.equal(form.getAll("image[]").length, 1)
+    assert.equal((form.get("mask") as File).name, "mask.png")
+    assert.equal(form.get("output_format"), "webp")
+    assert.equal(result.mode, "edit")
+    assert.equal(result.mime, "image/webp")
+  })
+})
+
+test("rejects unsupported OAuth edit options before calling the API", async () => {
+  await withTemp(async (directory) => {
+    let calls = 0
+    const fetcher: typeof fetch = async () => {
+      calls += 1
+      return new Response()
+    }
+    const auth = { type: "oauth", access: "secret", refresh: "refresh", expires: Date.now() + 60_000 } as const
+    await assert.rejects(
+      generateImage(
+        auth,
+        { prompt: "edit", outputPath: "masked.png", inputImages: [loadedPng()], mask: loadedPng("mask.png") },
+        directory,
+        fetcher,
+      ),
+      /API-key authentication only/,
+    )
+    await assert.rejects(
+      generateImage(
+        auth,
+        { prompt: "edit", outputPath: "edit.webp", format: "webp", inputImages: [loadedPng()] },
+        directory,
+        fetcher,
+      ),
+      /return PNG/,
+    )
+    assert.equal(calls, 0)
   })
 })
 
