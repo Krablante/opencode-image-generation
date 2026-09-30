@@ -40,7 +40,7 @@
   },
   "homepage": "https://github.com/Krablante/opencode-image-generation#readme",
   "dependencies": {
-    "@opencode-ai/plugin": "^1.2.25"
+    "@opencode/plugin": "2.0.20"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
